@@ -8,3 +8,7 @@ serve:
 
 make:
 	wasm-pack build --target web
+
+web:
+	@just make
+	rsync -avx --exclude='target' --exclude='.git' . vps:projects/spektrogramilo

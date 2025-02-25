@@ -10,14 +10,20 @@ pub struct Spectrogram {
     analyser: AnalyserNode,
     time_canvas: HtmlCanvasElement,
     freq_canvas: HtmlCanvasElement,
+    waterfall_canvas: HtmlCanvasElement,
     time_data: Vec<u8>,
     freq_data: Vec<u8>,
+    waterfall_x: f64,
 }
 
 #[wasm_bindgen]
 impl Spectrogram {
     #[wasm_bindgen(constructor)]
-    pub fn new(time_canvas_id: &str, freq_canvas_id: &str) -> Result<Spectrogram, JsValue> {
+    pub fn new(
+        time_canvas_id: &str,
+        freq_canvas_id: &str,
+        waterfall_canvas_id: &str,
+    ) -> Result<Spectrogram, JsValue> {
         console_error_panic_hook::set_once();
 
         let window = web_sys::window().ok_or("no window found")?;
@@ -29,6 +35,11 @@ impl Spectrogram {
         let freq_canvas = document
             .get_element_by_id(freq_canvas_id)
             .ok_or("freq canvas not found")?
+            .dyn_into::<HtmlCanvasElement>()?;
+
+        let waterfall_canvas = document
+            .get_element_by_id(waterfall_canvas_id)
+            .ok_or("waterfall canvas not found")?
             .dyn_into::<HtmlCanvasElement>()?;
 
         let context = AudioContext::new()?;
@@ -43,8 +54,10 @@ impl Spectrogram {
             analyser,
             time_canvas,
             freq_canvas,
+            waterfall_canvas,
             time_data,
             freq_data,
+            waterfall_x: 0.0,
         })
     }
 
@@ -132,6 +145,37 @@ impl Spectrogram {
 
             x += bar_width;
         }
+
+        // Draw waterfall plot
+        let waterfall_ctx = self
+            .waterfall_canvas
+            .get_context("2d")
+            .unwrap()
+            .unwrap()
+            .dyn_into::<web_sys::CanvasRenderingContext2d>()
+            .unwrap();
+
+        let waterfall_width = self.waterfall_canvas.width() as f64;
+        let waterfall_height = self.waterfall_canvas.height() as f64;
+
+        // Reset x position when reaching the end
+        if self.waterfall_x >= waterfall_width {
+            self.waterfall_x = 0.0;
+        }
+
+        // Draw new line at current x position
+        let bar_height = waterfall_height / self.freq_data.len() as f64;
+        for (i, &value) in self.freq_data.iter().rev().enumerate() {
+            let y = i as f64 * bar_height;
+            let normalized_value = value as f64 / 255.0;
+            let hue = 240.0 * (1.0 - normalized_value); // Blue (240) to Red (0)
+            waterfall_ctx.set_fill_style_str(&format!("hsl({}, 100%, {}%)", hue, 50.0));
+            waterfall_ctx.fill_rect(self.waterfall_x, y, 1.0, bar_height);
+        }
+
+        // Move to next x position
+        self.waterfall_x += 1.0;
+
         Ok(())
     }
 }

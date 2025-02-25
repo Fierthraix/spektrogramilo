@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Spektrogramilo - Real-time Audio Spectrogram</title>
+    <title>Spektrogramilo - Realtempaj Sonoj</title>
     <style>
         body {
             background: #1a1a1a;
@@ -18,14 +18,24 @@
             width: 100%;
             max-width: 800px;
         }
-        .time-series, .spectrogram {
+        .time-series, .spectrogram, .waterfall {
             margin: 20px 0;
+            position: relative;
         }
-        .separator {
-            padding: 20px;
-            background: #2a2a2a;
-            border-radius: 8px;
-            margin: 20px 0;
+        .axis-label {
+            position: absolute;
+            color: #888;
+            font-size: 12px;
+        }
+        .x-axis {
+            bottom: -25px;
+            right: 10px;
+        }
+        .y-axis {
+            transform: rotate(-90deg);
+            transform-origin: left top;
+            left: -30px;
+            top: 50%;
         }
         canvas {
             border: 1px solid #333;
@@ -49,23 +59,24 @@
 </head>
 <body>
     <h1>Spektrogramilo</h1>
-    <button id="startBtn">Begin Sonogram</button>
+    <button id="startBtn">Komenci Sonogramon</button>
     
     <div class="visualization-container">
         <div class="time-series">
-            <h2>Time Series</h2>
+            <h2>Tempa Serio</h2>
             <canvas id="timeCanvas" width="800" height="200"></canvas>
         </div>
-        
-        <!-- You can put any HTML content here -->
-        <div class="separator">
-            <p>This is an example of content between the visualizations.</p>
-            <p>You can put any HTML elements here!</p>
-        </div>
-        
+
         <div class="spectrogram">
-            <h2>Spectrogram</h2>
+            <h2>Spektrogramo</h2>
             <canvas id="freqCanvas" width="800" height="400"></canvas>
+        </div>
+
+        <div class="waterfall">
+            <h2>Akvofalgrafo</h2>
+            <canvas id="waterfallCanvas" width="800" height="400"></canvas>
+            <div class="axis-label x-axis">Tempo →</div>
+            <div class="axis-label y-axis">Frekvenco →</div>
         </div>
     </div>
 
@@ -78,34 +89,40 @@
             const startBtn = document.getElementById('startBtn');
             let spectrogram = null;
             let animationId = null;
+
+            function stopAnimation() {
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+                spectrogram = null;
+                startBtn.textContent = 'Komencu Sonogramon';
+            }
             
             startBtn.addEventListener('click', async () => {
                 if (!spectrogram) {
-                    spectrogram = new Spectrogram('timeCanvas', 'freqCanvas');
-                    await spectrogram.start();
-                    
-                    function animate() {
-                        try {
-                            spectrogram.draw_frame();
-                            animationId = requestAnimationFrame(animate);
-                        } catch (error) {
-                            console.error('Error in animation frame:', error);
-                            cancelAnimationFrame(animationId);
-                            animationId = null;
-                            spectrogram = null;
-                            startBtn.textContent = 'Begin Sonogram';
-                        }
+                    try {
+                        spectrogram = new Spectrogram('timeCanvas', 'freqCanvas', 'waterfallCanvas');
+                        await spectrogram.start();
+
+                        const animate = () => {
+                            try {
+                                spectrogram.draw_frame();
+                                animationId = requestAnimationFrame(animate);
+                            } catch (error) {
+                                console.error('Error in animation frame:', error);
+                                stopAnimation();
+                            }
+                        };
+
+                        animate();
+                        startBtn.textContent = 'Haltu Sonogramon';
+                    } catch (error) {
+                        console.error('Error starting spectrogram:', error);
+                        stopAnimation();
                     }
-                    animate();
-                    
-                    startBtn.textContent = 'Stop Sonogram';
                 } else {
-                    if (animationId) {
-                        cancelAnimationFrame(animationId);
-                        animationId = null;
-                    }
-                    spectrogram = null;
-                    startBtn.textContent = 'Begin Sonogram';
+                    stopAnimation();
                 }
             });
         }
