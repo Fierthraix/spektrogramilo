@@ -4,6 +4,15 @@ use web_sys::{
     self, AnalyserNode, AudioContext, HtmlCanvasElement, MediaStream, MediaStreamConstraints,
 };
 
+// Piano roll constants
+const A4_FREQUENCY: f64 = 440.0;
+const MIDI_A4: u8 = 69;
+const MIN_MIDI_NOTE: u8 = 21; // A0
+const MAX_MIDI_NOTE: u8 = 108; // C8
+const WHITE_KEYS: [bool; 12] = [
+    true, false, true, false, true, true, false, true, false, true, false, true,
+];
+
 #[wasm_bindgen]
 pub struct Spectrogram {
     context: AudioContext,
@@ -14,6 +23,9 @@ pub struct Spectrogram {
     time_data: Vec<u8>,
     freq_data: Vec<u8>,
     waterfall_x: f64,
+    piano_roll_width: f64,
+    min_frequency: f64,
+    max_frequency: f64,
 }
 
 #[wasm_bindgen]
@@ -58,6 +70,9 @@ impl Spectrogram {
             time_data,
             freq_data,
             waterfall_x: 0.0,
+            piano_roll_width: 40.0, // Width of piano roll in pixels
+            min_frequency: 27.5,    // A0 frequency
+            max_frequency: 4186.01, // C8 frequency
         })
     }
 
@@ -75,6 +90,80 @@ impl Spectrogram {
 
         let source = self.context.create_media_stream_source(&media_stream)?;
         source.connect_with_audio_node(&self.analyser)?;
+
+        Ok(())
+    }
+
+    // Helper method to convert frequency to MIDI note number
+    fn frequency_to_midi_note(&self, freq: f64) -> f64 {
+        12.0 * (freq / A4_FREQUENCY).log2() + MIDI_A4 as f64
+    }
+
+    // Helper method to convert MIDI note to frequency
+    fn midi_note_to_frequency(&self, note: f64) -> f64 {
+        A4_FREQUENCY * 2.0_f64.powf((note - MIDI_A4 as f64) / 12.0)
+    }
+
+    // Maps a frequency to y position using logarithmic scale
+    fn frequency_to_y_position(&self, freq: f64, height: f64) -> f64 {
+        let log_min = self.min_frequency.ln();
+        let log_max = self.max_frequency.ln();
+        let log_freq = freq.ln();
+
+        // Invert y-axis (0 at top, height at bottom)
+        height * (1.0 - (log_freq - log_min) / (log_max - log_min))
+    }
+
+    // Draw the piano roll on the canvas
+    fn draw_piano_roll(
+        &self,
+        ctx: &web_sys::CanvasRenderingContext2d,
+        height: f64,
+    ) -> Result<(), JsValue> {
+        // Draw piano roll background
+        ctx.set_fill_style_str("#222");
+        ctx.fill_rect(0.0, 0.0, self.piano_roll_width, height);
+
+        // Draw piano keys
+        for note in MIN_MIDI_NOTE..=MAX_MIDI_NOTE {
+            let note_freq = self.midi_note_to_frequency(note as f64);
+            let y = self.frequency_to_y_position(note_freq, height);
+
+            // Calculate the note index (0-11) to determine if it's white or black key
+            let note_idx = (note % 12) as usize;
+            let is_white = WHITE_KEYS[note_idx];
+
+            // Draw the key
+            if is_white {
+                ctx.set_fill_style_str("#aaa");
+                ctx.fill_rect(0.0, y - 1.0, self.piano_roll_width, 2.0);
+
+                // Draw note name for C notes (and A4 for reference)
+                if note_idx == 0 || note == MIDI_A4 {
+                    let octave = (note / 12) - 1;
+                    let note_name = if note_idx == 0 {
+                        format!("C{}", octave)
+                    } else {
+                        format!("A4")
+                    };
+
+                    ctx.set_font("10px Arial");
+                    ctx.set_fill_style_str("#fff");
+                    ctx.set_text_align("left");
+                    ctx.fill_text(&note_name, 3.0, y - 3.0)?;
+                }
+            } else {
+                ctx.set_fill_style_str("#666");
+                ctx.fill_rect(0.0, y - 0.5, self.piano_roll_width * 0.6, 1.0);
+            }
+        }
+
+        // Draw dividing line between piano roll and spectrogram
+        ctx.set_stroke_style_str("#555");
+        ctx.begin_path();
+        ctx.move_to(self.piano_roll_width, 0.0);
+        ctx.line_to(self.piano_roll_width, height);
+        ctx.stroke();
 
         Ok(())
     }
@@ -158,13 +247,44 @@ impl Spectrogram {
         let waterfall_width = self.waterfall_canvas.width() as f64;
         let waterfall_height = self.waterfall_canvas.height() as f64;
 
+        // Only clear and redraw the piano roll and current x-position, not the entire canvas
+        // This preserves the historical data in the waterfall
+
+        // Clear just the piano roll area and redraw it
+        waterfall_ctx.set_fill_style_str("#000");
+        waterfall_ctx.fill_rect(0.0, 0.0, self.piano_roll_width, waterfall_height);
+
+        // Draw piano roll
+        self.draw_piano_roll(&waterfall_ctx, waterfall_height)?;
+
+        // Adjust waterfall area to accommodate piano roll
+        let adjusted_width = waterfall_width - self.piano_roll_width;
+
         // Reset x position when reaching the end
         if self.waterfall_x >= waterfall_width {
-            self.waterfall_x = 0.0;
+            // Clear the entire canvas when we wrap around
+            waterfall_ctx.set_fill_style_str("#000");
+            waterfall_ctx.fill_rect(0.0, 0.0, waterfall_width, waterfall_height);
+
+            // Redraw the piano roll
+            self.draw_piano_roll(&waterfall_ctx, waterfall_height)?;
+
+            // Start after the piano roll
+            self.waterfall_x = self.piano_roll_width;
+        } else if self.waterfall_x < self.piano_roll_width {
+            self.waterfall_x = self.piano_roll_width;
         }
 
-        // Draw new line at current x position
+        // Clear just the current column where we'll draw new data
+        waterfall_ctx.set_fill_style_str("#000");
+        waterfall_ctx.fill_rect(self.waterfall_x, 0.0, 1.0, waterfall_height);
+
+        // Calculate height of each frequency bin in pixels
+        // Note: we're using logarithmic frequency mapping for the piano roll
+        // but the FFT data still uses linear mapping
         let bar_height = waterfall_height / self.freq_data.len() as f64;
+
+        // Draw new line at current x position
         for (i, &value) in self.freq_data.iter().rev().enumerate() {
             let y = i as f64 * bar_height;
             let normalized_value = value as f64 / 255.0;
