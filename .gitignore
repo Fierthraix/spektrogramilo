@@ -1,3 +1,4 @@
 Cargo.lock
 /target
 /pkg
+/xtask/target

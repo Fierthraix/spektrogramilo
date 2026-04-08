@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "Running cargo fmt..."
+cargo fmt --all
+cargo fmt --manifest-path xtask/Cargo.toml --all
+git add src xtask
+
+echo "Running cargo clippy..."
+cargo clippy --target wasm32-unknown-unknown --lib -- -D warnings
+cargo clippy --manifest-path xtask/Cargo.toml -- -D warnings
+
+echo "Building static Vercel artifact..."
+cargo run --quiet --manifest-path xtask/Cargo.toml --
+git add dist
