@@ -55,11 +55,37 @@
         button:hover {
             background: #45a049;
         }
+        button:disabled {
+            background: #6f6f6f;
+            cursor: progress;
+        }
+        .status {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 0 20px;
+            padding: 12px 16px;
+            border: 1px solid #2f2f2f;
+            border-radius: 8px;
+            background: #111;
+            color: #cfcfcf;
+            line-height: 1.5;
+        }
+        .status[data-tone="active"] {
+            border-color: #2a7d46;
+            color: #dff5e7;
+        }
+        .status[data-tone="error"] {
+            border-color: #9c3b3b;
+            color: #ffd4d4;
+        }
     </style>
 </head>
 <body>
     <h1>Spektrogramilo</h1>
     <button id="startBtn">Komenci Sonogramon</button>
+    <p id="status" class="status" data-tone="idle">
+        Alklaku la butonon kaj permesu mikrofonan aliron por vidi la sonondojn.
+    </p>
     
     <div class="visualization-container">
         <div class="time-series">
@@ -87,16 +113,52 @@
             await init();
             
             const startBtn = document.getElementById('startBtn');
+            const statusEl = document.getElementById('status');
+            const waterfallCanvas = document.getElementById('waterfallCanvas');
             let spectrogram = null;
             let animationId = null;
+            let isStarting = false;
 
-            function stopAnimation() {
+            function setStatus(message, tone = 'idle') {
+                statusEl.textContent = message;
+                statusEl.dataset.tone = tone;
+            }
+
+            function describeStartError(error) {
+                const message = error && typeof error.message === 'string'
+                    ? error.message
+                    : String(error);
+                const lowerMessage = message.toLowerCase();
+
+                if (lowerMessage.includes('notallowederror') || lowerMessage.includes('permission denied')) {
+                    return 'Mikrofona permeso estis rifuzita. Permesu la mikrofonon en la retumilo kaj reprovu.';
+                }
+
+                if (lowerMessage.includes('notfounderror') || lowerMessage.includes('requested device not found')) {
+                    return 'Neniu mikrofono estis trovita. Konektu mikrofonon kaj reprovu.';
+                }
+
+                if (lowerMessage.includes('notreadableerror') || lowerMessage.includes('could not start audio source')) {
+                    return 'La mikrofono ne povis ekfunkcii. Kontrolu ĉu alia programo jam uzas ĝin.';
+                }
+
+                if (lowerMessage.includes('securityerror')) {
+                    return 'La retumilo blokis mikrofonan aliron pro sekureca politiko.';
+                }
+
+                return `Ne eblis startigi la spektrogramon: ${message}`;
+            }
+
+            function stopAnimation(statusMessage = 'Spektrogramo haltis. Alklaku la butonon por restartigi kaj reprovi la mikrofonon.', statusTone = 'idle') {
                 if (animationId) {
                     cancelAnimationFrame(animationId);
                     animationId = null;
                 }
                 spectrogram = null;
-                startBtn.textContent = 'Komencu Sonogramon';
+                isStarting = false;
+                startBtn.disabled = false;
+                startBtn.textContent = 'Komenci Sonogramon';
+                setStatus(statusMessage, statusTone);
             }
             
             // Handle mouse movement over the piano roll
@@ -148,16 +210,21 @@
                     }
                 });
             }
+
+            setupPianoRollInteraction(waterfallCanvas);
             
             startBtn.addEventListener('click', async () => {
+                if (isStarting) {
+                    return;
+                }
+
                 if (!spectrogram) {
                     try {
+                        isStarting = true;
+                        startBtn.disabled = true;
+                        setStatus('Petante mikrofonan permeson. Se la retumilo demandas, elektu “Allow” aŭ “Permesi”.');
                         spectrogram = new Spectrogram('timeCanvas', 'freqCanvas', 'waterfallCanvas');
                         await spectrogram.start();
-                        
-                        // Setup piano roll mouse interaction
-                        const waterfallCanvas = document.getElementById('waterfallCanvas');
-                        setupPianoRollInteraction(waterfallCanvas);
 
                         const animate = () => {
                             try {
@@ -170,10 +237,13 @@
                         };
 
                         animate();
+                        isStarting = false;
+                        startBtn.disabled = false;
                         startBtn.textContent = 'Haltu Sonogramon';
+                        setStatus('Mikrofono aktivas. Parolu aŭ faru bruon por vidi la spektrogramon moviĝi.', 'active');
                     } catch (error) {
                         console.error('Error starting spectrogram:', error);
-                        stopAnimation();
+                        stopAnimation(describeStartError(error), 'error');
                     }
                 } else {
                     stopAnimation();

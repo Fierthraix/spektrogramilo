@@ -213,7 +213,7 @@ function __wbg_adapter_20(arg0, arg1, arg2) {
     wasm.closure34_externref_shim(arg0, arg1, arg2);
 }
 
-function __wbg_adapter_109(arg0, arg1, arg2, arg3) {
+function __wbg_adapter_111(arg0, arg1, arg2, arg3) {
     wasm.closure52_externref_shim(arg0, arg1, arg2, arg3);
 }
 
@@ -450,7 +450,7 @@ function __wbg_get_imports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return __wbg_adapter_109(a, state0.b, arg0, arg1);
+                    return __wbg_adapter_111(a, state0.b, arg0, arg1);
                 } finally {
                     state0.a = a;
                 }
@@ -488,6 +488,10 @@ function __wbg_get_imports() {
         const ret = Promise.resolve(arg0);
         return ret;
     };
+    imports.wbg.__wbg_resume_35efdc4ffe13bf18 = function() { return handleError(function (arg0) {
+        const ret = arg0.resume();
+        return ret;
+    }, arguments) };
     imports.wbg.__wbg_setaudio_44fa2f3772f04d0d = function(arg0, arg1) {
         arg0.audio = arg1;
     };
@@ -562,7 +566,7 @@ function __wbg_get_imports() {
         const ret = false;
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper443 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper445 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 35, __wbg_adapter_20);
         return ret;
     };

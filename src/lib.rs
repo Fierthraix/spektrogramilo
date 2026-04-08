@@ -127,6 +127,8 @@ impl Spectrogram {
         let media_stream = JsFuture::from(media_stream_promise).await?;
         let media_stream: MediaStream = media_stream.dyn_into()?;
 
+        JsFuture::from(self.context.resume()?).await?;
+
         let source = self.context.create_media_stream_source(&media_stream)?;
         source.connect_with_audio_node(&self.analyser)?;
 
