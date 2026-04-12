@@ -213,7 +213,7 @@ function __wbg_adapter_20(arg0, arg1, arg2) {
     wasm.closure34_externref_shim(arg0, arg1, arg2);
 }
 
-function __wbg_adapter_111(arg0, arg1, arg2, arg3) {
+function __wbg_adapter_112(arg0, arg1, arg2, arg3) {
     wasm.closure52_externref_shim(arg0, arg1, arg2, arg3);
 }
 
@@ -239,6 +239,17 @@ export class Spectrogram {
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
+    }
+    /**
+     * @param {number} tempo_largho
+     * @param {number} tempo_alto
+     * @param {number} frekvenco_largho
+     * @param {number} frekvenco_alto
+     * @param {number} akvofalo_largho
+     * @param {number} akvofalo_alto
+     */
+    regrandigu_kanvasojn(tempo_largho, tempo_alto, frekvenco_largho, frekvenco_alto, akvofalo_largho, akvofalo_alto) {
+        wasm.spectrogram_regrandigu_kanvasojn(this.__wbg_ptr, tempo_largho, tempo_alto, frekvenco_largho, frekvenco_alto, akvofalo_largho, akvofalo_alto);
     }
     /**
      * @param {number} y
@@ -450,7 +461,7 @@ function __wbg_get_imports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return __wbg_adapter_111(a, state0.b, arg0, arg1);
+                    return __wbg_adapter_112(a, state0.b, arg0, arg1);
                 } finally {
                     state0.a = a;
                 }
@@ -566,7 +577,7 @@ function __wbg_get_imports() {
         const ret = false;
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper445 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper447 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 35, __wbg_adapter_20);
         return ret;
     };

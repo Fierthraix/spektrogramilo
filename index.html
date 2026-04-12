@@ -2,126 +2,322 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Spektrogramilo - Realtempaj Sonoj</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            color-scheme: dark;
+        }
+
         body {
-            background: #1a1a1a;
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top, #2a2a2a 0%, #1a1a1a 45%, #101010 100%);
             color: #fff;
             font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
+        }
+
+        .page {
+            width: min(100%, 980px);
+            margin: 0 auto;
+            padding: clamp(16px, 3vw, 28px);
+        }
+
+        .hero {
             display: flex;
             flex-direction: column;
-            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
         }
+
+        .hero h1 {
+            margin: 0;
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            line-height: 1.05;
+        }
+
+        .hero p {
+            margin: 0;
+            max-width: 62ch;
+            color: #d3d3d3;
+            line-height: 1.55;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: stretch;
+        }
+
         .visualization-container {
-            width: 100%;
-            max-width: 800px;
+            display: grid;
+            gap: 18px;
         }
-        .time-series, .spectrogram, .waterfall {
-            margin: 20px 0;
+
+        .panel {
             position: relative;
+            padding: clamp(14px, 2.4vw, 22px);
+            border: 1px solid #2f2f2f;
+            border-radius: 18px;
+            background: rgba(10, 10, 10, 0.78);
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
         }
+
+        .panel h2 {
+            margin: 0 0 12px;
+            font-size: clamp(1.1rem, 2vw, 1.45rem);
+        }
+
+        .canvas-shell {
+            position: relative;
+            padding-bottom: 28px;
+        }
+
+        .waterfall-shell {
+            padding-left: 18px;
+        }
+
         .axis-label {
             position: absolute;
-            color: #888;
-            font-size: 12px;
+            color: #9a9a9a;
+            font-size: 0.8rem;
+            pointer-events: none;
         }
+
         .x-axis {
-            bottom: -25px;
             right: 10px;
+            bottom: 2px;
         }
+
         .y-axis {
+            left: 0;
+            top: calc(50% + 8px);
             transform: rotate(-90deg);
             transform-origin: left top;
-            left: -30px;
-            top: 50%;
         }
+
         canvas {
+            display: block;
+            width: 100%;
+            height: auto;
             border: 1px solid #333;
-            margin: 10px;
+            border-radius: 12px;
             background: #000;
         }
+
         button {
-            padding: 10px 20px;
-            font-size: 16px;
+            min-height: 48px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 999px;
             background: #4CAF50;
             color: white;
-            border: none;
-            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 700;
             cursor: pointer;
-            margin: 10px;
+            transition: background 160ms ease, transform 160ms ease;
         }
+
         button:hover {
             background: #45a049;
+            transform: translateY(-1px);
         }
+
         button:disabled {
             background: #6f6f6f;
             cursor: progress;
+            transform: none;
         }
+
         .status {
-            width: 100%;
-            max-width: 800px;
-            margin: 0 0 20px;
+            flex: 1 1 280px;
+            min-width: min(100%, 260px);
+            margin: 0;
             padding: 12px 16px;
             border: 1px solid #2f2f2f;
-            border-radius: 8px;
-            background: #111;
+            border-radius: 14px;
+            background: rgba(17, 17, 17, 0.92);
             color: #cfcfcf;
             line-height: 1.5;
         }
+
         .status[data-tone="active"] {
             border-color: #2a7d46;
             color: #dff5e7;
         }
+
         .status[data-tone="error"] {
             border-color: #9c3b3b;
             color: #ffd4d4;
         }
+
+        #waterfallCanvas {
+            touch-action: none;
+        }
+
+        @media (max-width: 720px) {
+            .controls {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            .waterfall-shell {
+                padding-left: 10px;
+            }
+
+            .y-axis {
+                left: -2px;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .page {
+                padding: 14px;
+            }
+
+            .panel {
+                padding: 12px;
+                border-radius: 14px;
+            }
+
+            .canvas-shell {
+                padding-bottom: 24px;
+            }
+
+            .axis-label {
+                font-size: 0.72rem;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>Spektrogramilo</h1>
-    <button id="startBtn">Komenci Sonogramon</button>
-    <p id="status" class="status" data-tone="idle">
-        Alklaku la butonon kaj permesu mikrofonan aliron por vidi la sonondojn.
-    </p>
-    
-    <div class="visualization-container">
-        <div class="time-series">
-            <h2>Tempa Serio</h2>
-            <canvas id="timeCanvas" width="800" height="200"></canvas>
-        </div>
+    <main class="page">
+        <section class="hero">
+            <h1>Spektrogramilo</h1>
+            <p>
+                Realtempa vida ilo por observi sonondojn, frekvencojn kaj ilian moviĝon en la tempo.
+                La aranĝo adaptiĝas al poŝtelefonoj, tabulkomputiloj kaj pli larĝaj ekranoj.
+            </p>
+            <div class="controls">
+                <button id="startBtn">Komenci Sonogramon</button>
+                <p id="status" class="status" data-tone="idle">
+                    Alklaku la butonon kaj permesu mikrofonan aliron por vidi la sonondojn.
+                </p>
+            </div>
+        </section>
 
-        <div class="spectrogram">
-            <h2>Spektrogramo</h2>
-            <canvas id="freqCanvas" width="800" height="400"></canvas>
-        </div>
+        <div class="visualization-container">
+            <section class="panel time-series">
+                <h2>Tempa Serio</h2>
+                <div class="canvas-shell">
+                    <canvas id="timeCanvas" width="800" height="200"></canvas>
+                </div>
+            </section>
 
-        <div class="waterfall">
-            <h2>Akvofalgrafo</h2>
-            <canvas id="waterfallCanvas" width="800" height="400"></canvas>
-            <div class="axis-label x-axis">Tempo →</div>
-            <div class="axis-label y-axis">Frekvenco →</div>
+            <section class="panel spectrogram">
+                <h2>Spektrogramo</h2>
+                <div class="canvas-shell">
+                    <canvas id="freqCanvas" width="800" height="400"></canvas>
+                </div>
+            </section>
+
+            <section class="panel waterfall">
+                <h2>Akvofalgrafo</h2>
+                <div class="canvas-shell waterfall-shell">
+                    <canvas id="waterfallCanvas" width="800" height="400"></canvas>
+                    <div class="axis-label x-axis">Tempo →</div>
+                    <div class="axis-label y-axis">Frekvenco →</div>
+                </div>
+            </section>
         </div>
-    </div>
+    </main>
 
     <script type="module">
         import init, { Spectrogram } from './pkg/spektrogramilo.js';
 
         async function run() {
             await init();
-            
+
             const startBtn = document.getElementById('startBtn');
             const statusEl = document.getElementById('status');
+            const timeCanvas = document.getElementById('timeCanvas');
+            const freqCanvas = document.getElementById('freqCanvas');
             const waterfallCanvas = document.getElementById('waterfallCanvas');
+            const visualizationContainer = document.querySelector('.visualization-container');
             let spectrogram = null;
             let animationId = null;
             let isStarting = false;
+            let resizeRafId = null;
 
             function setStatus(message, tone = 'idle') {
                 statusEl.textContent = message;
                 statusEl.dataset.tone = tone;
+            }
+
+            function limigu(valor, minimumo, maksimumo) {
+                return Math.max(minimumo, Math.min(maksimumo, valor));
+            }
+
+            function kalkuluDimensiojn() {
+                const haveblaLargho = visualizationContainer.clientWidth || window.innerWidth || 800;
+                const largho = Math.max(240, Math.floor(haveblaLargho));
+
+                return {
+                    tempo: {
+                        largho,
+                        alto: limigu(Math.round(largho * 0.28), 150, 230),
+                    },
+                    frekvenco: {
+                        largho,
+                        alto: limigu(Math.round(largho * 0.5), 220, 400),
+                    },
+                    akvofalo: {
+                        largho,
+                        alto: limigu(Math.round(largho * 0.58), 240, 420),
+                    },
+                };
+            }
+
+            function aplikuKanvasajnDimensiojn() {
+                const dimensioj = kalkuluDimensiojn();
+
+                timeCanvas.width = dimensioj.tempo.largho;
+                timeCanvas.height = dimensioj.tempo.alto;
+                freqCanvas.width = dimensioj.frekvenco.largho;
+                freqCanvas.height = dimensioj.frekvenco.alto;
+                waterfallCanvas.width = dimensioj.akvofalo.largho;
+                waterfallCanvas.height = dimensioj.akvofalo.alto;
+
+                if (spectrogram) {
+                    spectrogram.regrandigu_kanvasojn(
+                        dimensioj.tempo.largho,
+                        dimensioj.tempo.alto,
+                        dimensioj.frekvenco.largho,
+                        dimensioj.frekvenco.alto,
+                        dimensioj.akvofalo.largho,
+                        dimensioj.akvofalo.alto
+                    );
+                }
+            }
+
+            function planuRegrandigon() {
+                if (resizeRafId !== null) {
+                    cancelAnimationFrame(resizeRafId);
+                }
+
+                resizeRafId = requestAnimationFrame(() => {
+                    resizeRafId = null;
+                    aplikuKanvasajnDimensiojn();
+                });
             }
 
             function describeStartError(error) {
@@ -154,33 +350,30 @@
                     cancelAnimationFrame(animationId);
                     animationId = null;
                 }
+
                 spectrogram = null;
                 isStarting = false;
                 startBtn.disabled = false;
                 startBtn.textContent = 'Komenci Sonogramon';
                 setStatus(statusMessage, statusTone);
             }
-            
-            // Handle mouse movement over the piano roll
+
             function setupPianoRollInteraction(waterfall) {
-                const pianoRollWidth = 40; // Must match piano_roll_width in Rust
-                
-                // Track if currently highlighting a frequency
+                const pianoRollWidth = 40;
                 let isHighlighting = false;
-                
-                // Function to clear highlight
+
                 function clearHighlight() {
                     if (spectrogram && isHighlighting) {
                         spectrogram.set_highlighted_frequency(-1);
                         isHighlighting = false;
                     }
                 }
-                
-                // Update highlighting based on mouse position
+
                 function updateHighlight(x, y) {
-                    if (!spectrogram) return;
-                    
-                    // Check if mouse is over the piano roll area
+                    if (!spectrogram) {
+                        return;
+                    }
+
                     if (x <= pianoRollWidth) {
                         spectrogram.set_highlighted_frequency(y);
                         isHighlighting = true;
@@ -188,22 +381,30 @@
                         clearHighlight();
                     }
                 }
-                
-                // Add mouse movement listener
-                waterfall.addEventListener('mousemove', (event) => {
+
+                function lokajKoordinatoj(event) {
                     const rect = waterfall.getBoundingClientRect();
-                    const x = event.clientX - rect.left;
-                    const y = event.clientY - rect.top;
+
+                    return {
+                        x: (event.clientX - rect.left) * (waterfall.width / rect.width),
+                        y: (event.clientY - rect.top) * (waterfall.height / rect.height),
+                    };
+                }
+
+                waterfall.addEventListener('pointermove', (event) => {
+                    const { x, y } = lokajKoordinatoj(event);
                     updateHighlight(x, y);
                 });
-                
-                // Clear highlight when mouse leaves canvas
-                waterfall.addEventListener('mouseleave', clearHighlight);
-                
-                // Also listen for mouseout to ensure we catch all cases
-                waterfall.addEventListener('mouseout', clearHighlight);
-                
-                // Clear when animation stops
+
+                waterfall.addEventListener('pointerdown', (event) => {
+                    const { x, y } = lokajKoordinatoj(event);
+                    updateHighlight(x, y);
+                });
+
+                waterfall.addEventListener('pointerleave', clearHighlight);
+                waterfall.addEventListener('pointercancel', clearHighlight);
+                waterfall.addEventListener('pointerup', clearHighlight);
+
                 startBtn.addEventListener('click', () => {
                     if (spectrogram === null) {
                         clearHighlight();
@@ -211,8 +412,15 @@
                 });
             }
 
+            aplikuKanvasajnDimensiojn();
+            window.addEventListener('resize', planuRegrandigon);
+
+            if ('ResizeObserver' in window) {
+                new ResizeObserver(planuRegrandigon).observe(visualizationContainer);
+            }
+
             setupPianoRollInteraction(waterfallCanvas);
-            
+
             startBtn.addEventListener('click', async () => {
                 if (isStarting) {
                     return;
@@ -224,6 +432,7 @@
                         startBtn.disabled = true;
                         setStatus('Petante mikrofonan permeson. Se la retumilo demandas, elektu “Allow” aŭ “Permesi”.');
                         spectrogram = new Spectrogram('timeCanvas', 'freqCanvas', 'waterfallCanvas');
+                        aplikuKanvasajnDimensiojn();
                         await spectrogram.start();
 
                         const animate = () => {

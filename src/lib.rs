@@ -105,6 +105,34 @@ impl Spectrogram {
         // No full redraw needed, we'll handle this in draw_frame
     }
 
+    #[wasm_bindgen]
+    pub fn regrandigu_kanvasojn(
+        &mut self,
+        tempo_largho: u32,
+        tempo_alto: u32,
+        frekvenco_largho: u32,
+        frekvenco_alto: u32,
+        akvofalo_largho: u32,
+        akvofalo_alto: u32,
+    ) {
+        self.time_canvas.set_width(tempo_largho);
+        self.time_canvas.set_height(tempo_alto);
+
+        self.freq_canvas.set_width(frekvenco_largho);
+        self.freq_canvas.set_height(frekvenco_alto);
+
+        self.waterfall_canvas.set_width(akvofalo_largho);
+        self.waterfall_canvas.set_height(akvofalo_alto);
+
+        if let Some(highlight_canvas) = &self.highlight_canvas {
+            highlight_canvas.set_width(akvofalo_largho);
+            highlight_canvas.set_height(akvofalo_alto);
+        }
+
+        self.waterfall_x = self.piano_roll_width;
+        self.need_full_redraw = true;
+    }
+
     // Convert y position to frequency (inverse of frequency_to_y_position)
     fn y_position_to_frequency(&self, y: f64, height: f64) -> f64 {
         let log_min = self.min_frequency.ln();
