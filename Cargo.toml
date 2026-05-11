@@ -3,6 +3,7 @@ name = "spektrogramilo"
 version = "0.1.1"
 edition = "2024"
 description = "WebAssembly-bazita realtempa sona spektrogramilo"
+license = "GPL-3.0-or-later"
 repository = "https://github.com/Fierthraix/spektrogramilo"
 
 [lib]
